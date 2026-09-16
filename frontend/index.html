@@ -3,11 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Classification System</title>
+    <title>CIFAR-10 Image Classifier | MobileNetV2</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Frontend UI layout -->
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-badge">
+                <span class="badge-dot"></span>
+                <span>FastAPI • MobileNetV2 Transfer Learning</span>
+            </div>
+            <h1>Image Classification System</h1>
+            <p class="subtitle">Upload or drop a JPEG / PNG image to classify it into CIFAR-10 categories with real-time confidence scores.</p>
+            
+            <div class="metrics-pills" id="modelInfoPills">
+                <div class="pill"><strong>Dataset:</strong> CIFAR-10</div>
+                <div class="pill"><strong>Classes:</strong> 10 Categories</div>
+                <div class="pill"><strong>Top-1 Acc:</strong> 76.20%</div>
+                <div class="pill"><strong>Top-5 Acc:</strong> 98.71%</div>
+                <div class="pill pill-latency"><strong>Inference:</strong> &lt; 50ms (CPU)</div>
+            </div>
+        </header>
+
+        <!-- Error Notification Banner -->
+        <div id="errorBanner" class="alert-banner hidden" role="alert">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-content">
+                <div class="alert-title">Classification Error</div>
+                <div class="alert-message" id="errorMessage">An unexpected error occurred.</div>
+            </div>
+            <button class="alert-close" id="closeErrorBtn" aria-label="Close error">&times;</button>
+        </div>
+
+        <!-- Main Interactive Grid -->
+        <main class="main-grid">
+            <!-- Left Column: Upload & Preview -->
+            <section class="card upload-card">
+                <div class="card-header">
+                    <h2>Select or Drop Image</h2>
+                    <span class="card-tag">JPG, JPEG, PNG</span>
+                </div>
+
+                <!-- Drag & Drop Zone -->
+                <div id="dropZone" class="drop-zone">
+                    <input type="file" id="fileInput" accept="image/jpeg,image/png,image/jpg" class="file-input">
+                    <div class="drop-content" id="dropContent">
+                        <div class="upload-icon-circle">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                        </div>
+                        <p class="drop-primary">Drag & drop your image here</p>
+                        <p class="drop-secondary">or <span class="browse-link">browse from your computer</span></p>
+                        <p class="drop-note">Supports PNG, JPG, JPEG (Max 10MB)</p>
+                    </div>
+
+                    <!-- Image Preview Area -->
+                    <div id="previewArea" class="preview-area hidden">
+                        <img id="imagePreview" src="" alt="Selected image preview" class="preview-img">
+                        <div class="preview-meta">
+                            <div class="file-details">
+                                <span id="previewFileName" class="file-name">image.png</span>
+                                <span id="previewFileSize" class="file-size">0 KB</span>
+                            </div>
+                            <button id="removeImageBtn" type="button" class="btn-text-danger" title="Remove image">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Controls -->
+                <div class="action-controls">
+                    <button id="predictBtn" type="button" class="btn btn-primary" disabled>
+                        <span class="btn-spinner hidden" id="predictSpinner"></span>
+                        <span class="btn-text" id="predictBtnText">Classify Image</span>
+                    </button>
+                    <button id="resetBtn" type="button" class="btn btn-secondary">
+                        Reset
+                    </button>
+                </div>
+            </section>
+
+            <!-- Right Column: Prediction Results -->
+            <section class="card results-card" id="resultsSection">
+                <div class="card-header">
+                    <h2>Prediction Results</h2>
+                    <span id="inferenceBadge" class="latency-badge hidden">⚡ 0.0 ms</span>
+                </div>
+
+                <!-- Empty State (Before Prediction) -->
+                <div id="emptyResultState" class="empty-state">
+                    <div class="empty-icon-circle">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                    </div>
+                    <h3>No Classification Yet</h3>
+                    <p>Select or drag an image and click <strong>Classify Image</strong> to inspect prediction confidence.</p>
+                </div>
+
+                <!-- Loading State Overlay -->
+                <div id="loadingState" class="loading-state hidden">
+                    <div class="spinner-large"></div>
+                    <p>Running MobileNetV2 CPU inference...</p>
+                </div>
+
+                <!-- Active Results Content -->
+                <div id="predictionContent" class="prediction-content hidden">
+                    <!-- Top Prediction Highlight Banner -->
+                    <div class="top-prediction-box">
+                        <div class="top-pred-header">
+                            <span class="top-label">Top Prediction</span>
+                            <span class="confidence-tag" id="topConfidenceTag">0.00%</span>
+                        </div>
+                        <div class="predicted-class-name" id="predictedClassName">-</div>
+                        <div class="confidence-bar-container">
+                            <div class="confidence-bar-fill" id="topConfidenceBar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Top 5 Breakdown -->
+                    <div class="breakdown-container">
+                        <h3>Top-5 Predictions</h3>
+                        <div class="top5-list" id="top5List">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Prediction History Section -->
+        <section class="card history-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <h2>Recent Prediction History</h2>
+                    <span class="history-count" id="historyCount">0 saved</span>
+                </div>
+                <button id="clearHistoryBtn" type="button" class="btn btn-sm btn-outline-danger" disabled>
+                    Clear History
+                </button>
+            </div>
+
+            <!-- Empty History State -->
+            <div id="emptyHistoryState" class="empty-state-compact">
+                <p>No predictions recorded yet. Classifications made during this session will be remembered here.</p>
+            </div>
+
+            <!-- History Items Grid -->
+            <div id="historyGrid" class="history-grid hidden">
+                <!-- Dynamically populated from localStorage -->
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Image Classification System • MobileNetV2 on CIFAR-10 • FastAPI Backend</p>
+        </footer>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

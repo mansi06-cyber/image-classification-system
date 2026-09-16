@@ -1,0 +1,34 @@
+{
+  "model_path": "model/cifar10_mobilenetv2.pth",
+  "total_test_samples": 10000,
+  "loss": 0.6966,
+  "top1_accuracy": 76.2,
+  "top5_accuracy": 98.71,
+  "evaluation_time_seconds": 0.48,
+  "per_class_accuracy": {
+    "airplane": 79.21,
+    "automobile": 80.62,
+    "bird": 77.87,
+    "cat": 60.93,
+    "deer": 68.63,
+    "dog": 69.18,
+    "frog": 78.57,
+    "horse": 80.16,
+    "ship": 83.18,
+    "truck": 84.85
+  },
+  "per_class_recall": {
+    "airplane": 80.0,
+    "automobile": 86.5,
+    "bird": 65.1,
+    "cat": 64.4,
+    "deer": 68.9,
+    "dog": 70.7,
+    "frog": 82.5,
+    "horse": 78.0,
+    "ship": 84.1,
+    "truck": 81.8
+  },
+  "macro_avg_f1": 76.18,
+  "weighted_avg_f1": 76.18
+}
